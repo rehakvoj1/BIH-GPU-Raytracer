@@ -45,7 +45,7 @@ int main() {
 
 	App app;
 	app.NewWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Bounding Interval Hierarchy Raytracer" );
-	
+	app.Run();
 
 
 	return 0;

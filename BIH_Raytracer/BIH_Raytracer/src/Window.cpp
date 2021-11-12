@@ -10,6 +10,9 @@ void Window::processInput() {
 }
 
 void Window::key_callback( GLFWwindow* window, int key, int scancode, int action, int mods ) {
+	if ( key == GLFW_KEY_ESCAPE && action == GLFW_PRESS ) {
+		glfwSetWindowShouldClose( window, true );
+	}
 }
 
 void scroll_callback( GLFWwindow* window, double xoffset, double yoffset ) {
@@ -35,5 +38,5 @@ Window::Window( GLFWwindow* window ) {
 }
 
 GLFWwindow* Window::GetWindow() {
-    return nullptr;
+    return m_wnd.get();
 }
