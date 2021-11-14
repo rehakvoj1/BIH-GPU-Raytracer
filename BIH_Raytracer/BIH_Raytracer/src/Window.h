@@ -4,9 +4,7 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
-// cuda includes
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
+
 
 #include <iostream>
 #include <string>
@@ -27,7 +25,7 @@ struct glfwDeleter {
 class Window {
 public:
 	Window() = delete;
-	Window( GLFWwindow* window );
+	Window( GLFWwindow* window, int width, int height, std::string title );
 	GLFWwindow* GetWindow();
 
 	void processInput();
@@ -39,5 +37,8 @@ public:
 
 private:
 	std::unique_ptr<GLFWwindow, glfwDeleter> m_wnd;
+	int m_width;
+	int m_height;
+	std::string m_title;
 };
 

@@ -2,20 +2,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CudaCompile Include="src\main.cpp" />
+    <CudaCompile Include="src\Render.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\Window.cpp" />
-    <ClCompile Include="src\glad\src\glad.c" />
     <ClCompile Include="src\glm\detail\glm.cpp" />
     <ClCompile Include="src\glad\glad.c" />
+    <ClCompile Include="src\Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\App.h" />
     <ClInclude Include="src\Constants.h" />
     <ClInclude Include="src\Window.h" />
-    <ClInclude Include="src\glad\include\glad\glad.h" />
-    <ClInclude Include="src\glad\include\KHR\khrplatform.h" />
     <ClInclude Include="src\GLFW\glfw3.h" />
     <ClInclude Include="src\GLFW\glfw3native.h" />
     <ClInclude Include="src\glm\detail\_features.hpp" />
@@ -261,6 +260,7 @@
     <ClInclude Include="src\glm\vector_relational.hpp" />
     <ClInclude Include="src\glad\glad.h" />
     <ClInclude Include="src\glad\KHR\khrplatform.h" />
+    <ClInclude Include="src\Renderer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\glm\detail\func_common.inl" />

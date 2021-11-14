@@ -30,7 +30,6 @@
 
 
 #include "App.h"
-#include "Constants.h"
 
 #define WINDOWS_LEAN_AND_MEAN
 #define NOMINMAX
@@ -44,8 +43,9 @@ int main() {
 	std::cout << "Starting app..." << std::endl;
 
 	App app;
-	app.NewWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Bounding Interval Hierarchy Raytracer" );
-	app.Run();
+	if ( app.NewWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Bounding Interval Hierarchy Raytracer" ) ) {
+		app.Run();
+	}
 
 
 	return 0;

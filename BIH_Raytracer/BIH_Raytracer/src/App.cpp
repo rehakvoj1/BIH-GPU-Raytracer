@@ -3,7 +3,9 @@
 App::App() {
 }
 
-
+App::~App() {
+	glfwTerminate();
+}
 
 
 GLFWwindow* App::NewWindow( int width, int height, std::string title ) {
@@ -25,22 +27,29 @@ GLFWwindow* App::NewWindow( int width, int height, std::string title ) {
 		return nullptr;
 	}
 
-	m_window = std::make_unique<Window>( window );
+	m_window = std::make_unique<Window>( window, width, height, title );
 	
 	std::cout << "Initializing GLAD..." << std::endl;
 	if ( !gladLoadGLLoader( (GLADloadproc)glfwGetProcAddress ) ) {
 		std::cout << "Failed to initialize GLAD" << std::endl;
+		glfwTerminate();
 		return nullptr;
 	}
-    
+
+	std::cout << "Initializing renderer..." << std::endl;
+	m_renderer = std::make_unique<Renderer>();
+	m_renderer->Init();
+	
 	return m_window->GetWindow();
 }
 
+
 void App::Run() {
 	while ( !glfwWindowShouldClose( m_window->GetWindow() ) ) {
-
-		// TODO: ATTENTION: WHEN RENDERING REPLACE WITH glfwPollEvents() !!!!!!!!!!
-		glfwWaitEvents();
+		
+		m_renderer->Render();
+		glfwSwapBuffers( m_window->GetWindow() );
+		glfwPollEvents();
 	}
 }
 

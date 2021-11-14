@@ -25,7 +25,9 @@ void Window::mouse_callback( GLFWwindow* window, double xpos, double ypos ) {
 
 
 
-Window::Window( GLFWwindow* window ) {
+Window::Window( GLFWwindow* window, int width, int height, std::string title ) : m_width(width), 
+																				 m_height(height),
+																				 m_title(title) {
 
 	m_wnd.reset( window );
 
@@ -35,6 +37,7 @@ Window::Window( GLFWwindow* window ) {
 	glfwSetCursorPosCallback( m_wnd.get(), mouse_callback );
 	glfwSetScrollCallback( m_wnd.get(), scroll_callback );
 	glfwSetInputMode( m_wnd.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED );
+	
 }
 
 GLFWwindow* Window::GetWindow() {
