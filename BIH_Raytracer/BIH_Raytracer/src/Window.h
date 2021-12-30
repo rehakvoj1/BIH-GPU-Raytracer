@@ -27,6 +27,7 @@ public:
 	Window() = delete;
 	Window( GLFWwindow* window, int width, int height, std::string title );
 	GLFWwindow* GetWindow();
+	void ShowFPS( float fps );
 
 	void processInput();
 	// callbacks

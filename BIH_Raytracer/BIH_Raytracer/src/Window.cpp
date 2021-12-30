@@ -43,3 +43,7 @@ Window::Window( GLFWwindow* window, int width, int height, std::string title ) :
 GLFWwindow* Window::GetWindow() {
     return m_wnd.get();
 }
+
+void Window::ShowFPS( float fps ) {
+	glfwSetWindowTitle( m_wnd.get(), ( m_title + "     FPS: " + std::to_string( fps ) ).c_str() );
+}

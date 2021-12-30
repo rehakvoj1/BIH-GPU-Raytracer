@@ -45,8 +45,17 @@ GLFWwindow* App::NewWindow( int width, int height, std::string title ) {
 
 
 void App::Run() {
+	float deltaTime=0.0;
+	float lastFrame=0.0;
+
 	while ( !glfwWindowShouldClose( m_window->GetWindow() ) ) {
 		
+		float currentFrame = (float)glfwGetTime();
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
+		m_window->ShowFPS( 1.0f / deltaTime );
+
 		m_renderer->Render();
 		glfwSwapBuffers( m_window->GetWindow() );
 		glfwPollEvents();
