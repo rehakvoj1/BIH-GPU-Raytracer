@@ -11,6 +11,7 @@ public:
 
 	// -------- WINDOW ------- //
 	GLFWwindow* NewWindow( int width, int height, std::string title );
+	void LoadModels();
 	void Run();
 
 private:

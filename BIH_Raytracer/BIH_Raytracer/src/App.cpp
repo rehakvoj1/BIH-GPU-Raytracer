@@ -1,4 +1,7 @@
 #include "App.h"
+#include "Model.h"
+#include <iostream>
+#include <filesystem>
 
 App::App() {
 }
@@ -41,6 +44,10 @@ GLFWwindow* App::NewWindow( int width, int height, std::string title ) {
 	m_renderer->Init();
 	
 	return m_window->GetWindow();
+}
+
+void App::LoadModels() {
+	Model sponza( "resources/sponza/sponza.obj" );
 }
 
 

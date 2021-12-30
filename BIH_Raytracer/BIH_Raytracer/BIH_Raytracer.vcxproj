@@ -23,13 +23,95 @@
     <CudaCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Model.cpp" />
+    <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\glad\glad.c" />
     <ClCompile Include="src\glm\detail\glm.cpp" />
+    <ClCompile Include="src\Stb-impl.cpp" />
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\assimp\aabb.h" />
+    <ClInclude Include="src\assimp\ai_assert.h" />
+    <ClInclude Include="src\assimp\anim.h" />
+    <ClInclude Include="src\assimp\BaseImporter.h" />
+    <ClInclude Include="src\assimp\Bitmap.h" />
+    <ClInclude Include="src\assimp\BlobIOSystem.h" />
+    <ClInclude Include="src\assimp\ByteSwapper.h" />
+    <ClInclude Include="src\assimp\camera.h" />
+    <ClInclude Include="src\assimp\cexport.h" />
+    <ClInclude Include="src\assimp\cfileio.h" />
+    <ClInclude Include="src\assimp\cimport.h" />
+    <ClInclude Include="src\assimp\color4.h" />
+    <ClInclude Include="src\assimp\Compiler\poppack1.h" />
+    <ClInclude Include="src\assimp\Compiler\pstdint.h" />
+    <ClInclude Include="src\assimp\Compiler\pushpack1.h" />
+    <ClInclude Include="src\assimp\config.h" />
+    <ClInclude Include="src\assimp\CreateAnimMesh.h" />
+    <ClInclude Include="src\assimp\DefaultIOStream.h" />
+    <ClInclude Include="src\assimp\DefaultIOSystem.h" />
+    <ClInclude Include="src\assimp\DefaultLogger.hpp" />
+    <ClInclude Include="src\assimp\Defines.h" />
+    <ClInclude Include="src\assimp\defs.h" />
+    <ClInclude Include="src\assimp\Exceptional.h" />
+    <ClInclude Include="src\assimp\Exporter.hpp" />
+    <ClInclude Include="src\assimp\fast_atof.h" />
+    <ClInclude Include="src\assimp\GenericProperty.h" />
+    <ClInclude Include="src\assimp\Hash.h" />
+    <ClInclude Include="src\assimp\Importer.hpp" />
+    <ClInclude Include="src\assimp\importerdesc.h" />
+    <ClInclude Include="src\assimp\IOStream.hpp" />
+    <ClInclude Include="src\assimp\IOStreamBuffer.h" />
+    <ClInclude Include="src\assimp\IOSystem.hpp" />
+    <ClInclude Include="src\assimp\irrXMLWrapper.h" />
+    <ClInclude Include="src\assimp\light.h" />
+    <ClInclude Include="src\assimp\LineSplitter.h" />
+    <ClInclude Include="src\assimp\LogAux.h" />
+    <ClInclude Include="src\assimp\Logger.hpp" />
+    <ClInclude Include="src\assimp\LogStream.hpp" />
+    <ClInclude Include="src\assimp\Macros.h" />
+    <ClInclude Include="src\assimp\material.h" />
+    <ClInclude Include="src\assimp\MathFunctions.h" />
+    <ClInclude Include="src\assimp\matrix3x3.h" />
+    <ClInclude Include="src\assimp\matrix4x4.h" />
+    <ClInclude Include="src\assimp\MemoryIOWrapper.h" />
+    <ClInclude Include="src\assimp\mesh.h" />
+    <ClInclude Include="src\assimp\metadata.h" />
+    <ClInclude Include="src\assimp\NullLogger.hpp" />
+    <ClInclude Include="src\assimp\ParsingUtils.h" />
+    <ClInclude Include="src\assimp\pbrmaterial.h" />
+    <ClInclude Include="src\assimp\port\AndroidJNI\AndroidJNIIOSystem.h" />
+    <ClInclude Include="src\assimp\postprocess.h" />
+    <ClInclude Include="src\assimp\Profiler.h" />
+    <ClInclude Include="src\assimp\ProgressHandler.hpp" />
+    <ClInclude Include="src\assimp\qnan.h" />
+    <ClInclude Include="src\assimp\quaternion.h" />
+    <ClInclude Include="src\assimp\RemoveComments.h" />
+    <ClInclude Include="src\assimp\scene.h" />
+    <ClInclude Include="src\assimp\SceneCombiner.h" />
+    <ClInclude Include="src\assimp\SGSpatialSort.h" />
+    <ClInclude Include="src\assimp\SkeletonMeshBuilder.h" />
+    <ClInclude Include="src\assimp\SmoothingGroups.h" />
+    <ClInclude Include="src\assimp\SpatialSort.h" />
+    <ClInclude Include="src\assimp\StandardShapes.h" />
+    <ClInclude Include="src\assimp\StreamReader.h" />
+    <ClInclude Include="src\assimp\StreamWriter.h" />
+    <ClInclude Include="src\assimp\StringComparison.h" />
+    <ClInclude Include="src\assimp\StringUtils.h" />
+    <ClInclude Include="src\assimp\Subdivision.h" />
+    <ClInclude Include="src\assimp\texture.h" />
+    <ClInclude Include="src\assimp\TinyFormatter.h" />
+    <ClInclude Include="src\assimp\types.h" />
+    <ClInclude Include="src\assimp\vector2.h" />
+    <ClInclude Include="src\assimp\vector3.h" />
+    <ClInclude Include="src\assimp\version.h" />
+    <ClInclude Include="src\assimp\Vertex.h" />
+    <ClInclude Include="src\assimp\XMLTools.h" />
+    <ClInclude Include="src\assimp\ZipArchiveIOSystem.h" />
+    <ClInclude Include="src\Model.h" />
+    <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Renderer.h" />
     <ClInclude Include="src\App.h" />
     <ClInclude Include="src\Constants.h" />
@@ -278,10 +360,23 @@
     <ClInclude Include="src\glm\vec3.hpp" />
     <ClInclude Include="src\glm\vec4.hpp" />
     <ClInclude Include="src\glm\vector_relational.hpp" />
+    <ClInclude Include="src\stb_image.h" />
     <ClInclude Include="src\Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="libs\assimp-vc142-mt.dll" />
     <None Include="libs\glfw3.dll" />
+    <None Include="libs\zlib.dll" />
+    <None Include="src\assimp\.editorconfig" />
+    <None Include="src\assimp\color4.inl" />
+    <None Include="src\assimp\config.h.in" />
+    <None Include="src\assimp\material.inl" />
+    <None Include="src\assimp\matrix3x3.inl" />
+    <None Include="src\assimp\matrix4x4.inl" />
+    <None Include="src\assimp\quaternion.inl" />
+    <None Include="src\assimp\SmoothingGroups.inl" />
+    <None Include="src\assimp\vector2.inl" />
+    <None Include="src\assimp\vector3.inl" />
     <None Include="src\glm\detail\func_common.inl" />
     <None Include="src\glm\detail\func_common_simd.inl" />
     <None Include="src\glm\detail\func_exponential.inl" />
@@ -416,9 +511,13 @@
     <None Include="src\glm\gtx\wrap.inl" />
   </ItemGroup>
   <ItemGroup>
+    <Library Include="libs\assimp-vc142-mt.lib" />
     <Library Include="libs\glfw3.lib" />
     <Library Include="libs\glfw3dll.lib" />
     <Library Include="libs\glfw3_mt.lib" />
+    <Library Include="libs\IrrXML.lib" />
+    <Library Include="libs\zlib.lib" />
+    <Library Include="libs\zlibstatic.lib" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
