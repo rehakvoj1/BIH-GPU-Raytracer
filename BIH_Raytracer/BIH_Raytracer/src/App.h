@@ -2,6 +2,7 @@
 
 #include "Window.h"
 #include "Renderer.h"
+#include "HitableList.h"
 
 class App {
 public:
@@ -17,5 +18,6 @@ public:
 private:
 	std::unique_ptr<Window> m_window;
 	std::unique_ptr<Renderer> m_renderer;
+	Hitable* d_world;
 };
 

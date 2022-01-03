@@ -23,6 +23,9 @@
     <CudaCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\HitableList.cpp" />
+    <ClCompile Include="src\Ray.cpp" />
+    <ClCompile Include="src\Hitable.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
@@ -31,8 +34,12 @@
     <ClCompile Include="src\glm\detail\glm.cpp" />
     <ClCompile Include="src\Stb-impl.cpp" />
     <ClCompile Include="src\Window.cpp" />
+    <ClCompile Include="src\Triangle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\HitableList.h" />
+    <ClInclude Include="src\Ray.h" />
+    <ClInclude Include="src\Hitable.h" />
     <ClInclude Include="src\assimp\aabb.h" />
     <ClInclude Include="src\assimp\ai_assert.h" />
     <ClInclude Include="src\assimp\anim.h" />
@@ -362,6 +369,7 @@
     <ClInclude Include="src\glm\vector_relational.hpp" />
     <ClInclude Include="src\stb_image.h" />
     <ClInclude Include="src\Window.h" />
+    <ClInclude Include="src\Triangle.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="libs\assimp-vc142-mt.dll" />

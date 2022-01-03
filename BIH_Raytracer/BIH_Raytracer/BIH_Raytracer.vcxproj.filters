@@ -13,6 +13,10 @@
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\Stb-impl.cpp" />
+    <ClCompile Include="src\Hitable.cpp" />
+    <ClCompile Include="src\Ray.cpp" />
+    <ClCompile Include="src\HitableList.cpp" />
+    <ClCompile Include="src\Triangle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\App.h" />
@@ -344,6 +348,10 @@
     <ClInclude Include="src\assimp\XMLTools.h" />
     <ClInclude Include="src\assimp\ZipArchiveIOSystem.h" />
     <ClInclude Include="src\stb_image.h" />
+    <ClInclude Include="src\Hitable.h" />
+    <ClInclude Include="src\Ray.h" />
+    <ClInclude Include="src\HitableList.h" />
+    <ClInclude Include="src\Triangle.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\glm\detail\func_common.inl" />
