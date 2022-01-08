@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="src\Render.cu" />
+    <CudaCompile Include="src\CUDAKernels.cu" />
     <CudaCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -3,8 +3,8 @@
 #include "Constants.h"
 
 
+
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
-extern "C" void launch_cudaProcess( dim3 grid, dim3 block, int sbytes, unsigned int* g_odata, int imgw );
 
 void check_cuda( cudaError_t result, char const* const func, const char* const file, int const line ) {
 	if ( result ) {
@@ -16,30 +16,31 @@ void check_cuda( cudaError_t result, char const* const func, const char* const f
 	}
 }
 
-Renderer::Renderer() : d_camera(nullptr), m_quadTexture(0), m_shaderProgram(0), m_cudaTexResultRes( nullptr ), m_cudaDestResource(nullptr),
+__host__ Renderer::Renderer() : d_camera(nullptr), m_quadTexture(0), m_shaderProgram(0), m_cudaTexResultRes( nullptr ), m_cudaDestResource(nullptr),
 					   m_quadVAO(0), m_quadVBO(0), m_quadEBO(0)
 {
 }
 
-void Renderer::Init() {
+__host__ void Renderer::Init() {
 	// create texture that will receive the result of CUDA
 	CreateTextureDst();
 	
 	// load shader programs
 	m_shaderProgram = CompileGLSLprogram();
 
+	// calculate grid size
+	m_threads = { THREADS_X, THREADS_Y, 1 };
+	m_blocks = { SCREEN_WIDTH / THREADS_X + 1, SCREEN_HEIGHT / THREADS_Y + 1, 1 };
+
 	CreateCUDABuffers();
 	InitQuad();
 	InitCamera();
 }
 
-void Renderer::Render() {
-	// calculate grid size
-	dim3 block( 16, 16, 1 );
-	// dim3 block(16, 16, 1);
-	dim3 grid( SCREEN_WIDTH / block.x, SCREEN_HEIGHT / block.y, 1 );
-
-	launch_cudaProcess( grid, block, 0, m_cudaDestResource, SCREEN_WIDTH );
+__host__ void Renderer::Render() {
+	Launch_cudaRender( m_blocks, m_threads, 0, m_cudaDestResource, SCREEN_WIDTH );
+	checkCudaErrors( cudaGetLastError() );
+	checkCudaErrors( cudaDeviceSynchronize() );
 
 	cudaArray* texture_ptr;
 	checkCudaErrors( cudaGraphicsMapResources( 1, &m_cudaTexResultRes, 0 ) );
@@ -70,7 +71,7 @@ void Renderer::Render() {
 }
 
 
-GLuint Renderer::CompileGLSLprogram() {
+__host__ GLuint Renderer::CompileGLSLprogram() {
 	GLuint v, f, p = 0;
 
 	p = glCreateProgram();
@@ -136,7 +137,7 @@ GLuint Renderer::CompileGLSLprogram() {
 	return p;
 }
 
-void Renderer::CreateTextureDst() {
+__host__ void Renderer::CreateTextureDst() {
 	// create a texture
 	glGenTextures( 1, &m_quadTexture );
 	glBindTexture( GL_TEXTURE_2D, m_quadTexture );
@@ -157,7 +158,7 @@ void Renderer::CreateTextureDst() {
 		cudaGraphicsMapFlagsWriteDiscard ) );
 }
 
-void Renderer::CreateCUDABuffers() {
+__host__ void Renderer::CreateCUDABuffers() {
 	// set up vertex data parameter
 	unsigned int num_texels = SCREEN_WIDTH * SCREEN_HEIGHT;
 	unsigned int num_values = num_texels * 4;
@@ -165,7 +166,7 @@ void Renderer::CreateCUDABuffers() {
 	checkCudaErrors( cudaMalloc( (void**)&m_cudaDestResource, size_tex_data ) );
 }
 
-void Renderer::InitQuad() {
+__host__ void Renderer::InitQuad() {
 	glGenVertexArrays( 1, &m_quadVAO );
 	glGenBuffers( 1, &m_quadVBO );
 	glGenBuffers( 1, &m_quadEBO );
@@ -186,8 +187,18 @@ void Renderer::InitQuad() {
 	glEnableVertexAttribArray( 1 );
 }
 
-void Renderer::InitCamera() {
+__host__ void Renderer::InitCamera() {
 	Camera camera( glm::vec3( 0.0, 0.0, 0.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
 	cudaMalloc( &d_camera, sizeof( Camera ) );
 	cudaMemcpy( d_camera, &camera, sizeof( Camera ), cudaMemcpyHostToDevice );
 }
+
+__host__ void Renderer::InitRand() {
+	unsigned int num_texels = SCREEN_WIDTH * SCREEN_HEIGHT;
+	checkCudaErrors( cudaMalloc( (void**)&d_rand_state, num_texels * sizeof( curandState ) ) );
+	Launch_cudaRandInit(d_rand_state);
+	checkCudaErrors( cudaGetLastError() );
+	checkCudaErrors( cudaDeviceSynchronize() );
+}
+
+

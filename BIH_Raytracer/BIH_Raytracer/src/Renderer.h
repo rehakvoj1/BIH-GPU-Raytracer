@@ -7,6 +7,7 @@
 // cuda includes
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include "curand_kernel.h"
 #include <iostream>
 
 
@@ -15,18 +16,23 @@
 
 class Renderer {
 public:
-	Renderer();
-    void Init();
-    void Render();
+	__host__ Renderer();
+    __host__ void Init();
+    __host__ void Render();
 
 private:
-    GLuint CompileGLSLprogram();
-    void CreateTextureDst();
-    void CreateCUDABuffers();
-    void InitQuad();
-    void InitCamera();
-
+    void Launch_cudaRender( dim3 grid, dim3 block, int sbytes,
+                             unsigned int* g_odata, int imgw );
+    void Launch_cudaRandInit(curandState * rand_state);
+    __host__ GLuint CompileGLSLprogram();
+    __host__ void CreateTextureDst();
+    __host__ void CreateCUDABuffers();
+    __host__ void InitQuad();
+    __host__ void InitCamera();
+    __host__ void InitRand();
+    
 private:
+    curandState* d_rand_state;
     Camera* d_camera;
     GLuint m_quadTexture;
     GLuint m_shaderProgram;
@@ -35,6 +41,9 @@ private:
     unsigned int m_quadVAO;
     unsigned int m_quadVBO;
     unsigned int m_quadEBO;
+
+    dim3 m_blocks;
+    dim3 m_threads;
 
 private:
 	const char* m_texVertexShader = 
