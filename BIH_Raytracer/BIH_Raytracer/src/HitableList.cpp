@@ -4,7 +4,7 @@ __device__ HitableList::HitableList(): list(nullptr), list_size(0)
 {
 }
 
-__device__ HitableList::HitableList( Hitable** l, int n ) : list(l), list_size(n)
+__host__ HitableList::HitableList( Hitable** l, int n ) : list(l), list_size(n)
 {
 }
 

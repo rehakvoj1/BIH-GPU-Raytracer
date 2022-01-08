@@ -16,7 +16,7 @@ void check_cuda( cudaError_t result, char const* const func, const char* const f
 	}
 }
 
-Renderer::Renderer() : m_quadTexture(0), m_shaderProgram(0), m_cudaTexResultRes( nullptr ), m_cudaDestResource(nullptr),
+Renderer::Renderer() : d_camera(nullptr), m_quadTexture(0), m_shaderProgram(0), m_cudaTexResultRes( nullptr ), m_cudaDestResource(nullptr),
 					   m_quadVAO(0), m_quadVBO(0), m_quadEBO(0)
 {
 }
@@ -30,6 +30,7 @@ void Renderer::Init() {
 
 	CreateCUDABuffers();
 	InitQuad();
+	InitCamera();
 }
 
 void Renderer::Render() {
@@ -183,4 +184,10 @@ void Renderer::InitQuad() {
 	// texture coord attribute
 	glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), (void*)( 3 * sizeof( float ) ) );
 	glEnableVertexAttribArray( 1 );
+}
+
+void Renderer::InitCamera() {
+	Camera camera( glm::vec3( 0.0, 0.0, 0.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
+	cudaMalloc( &d_camera, sizeof( Camera ) );
+	cudaMemcpy( d_camera, &camera, sizeof( Camera ), cudaMemcpyHostToDevice );
 }

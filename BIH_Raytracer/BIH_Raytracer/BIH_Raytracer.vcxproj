@@ -23,6 +23,7 @@
     <CudaCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\HitableList.cpp" />
     <ClCompile Include="src\Ray.cpp" />
     <ClCompile Include="src\Hitable.cpp" />
@@ -37,6 +38,7 @@
     <ClCompile Include="src\Triangle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\HitableList.h" />
     <ClInclude Include="src\Ray.h" />
     <ClInclude Include="src\Hitable.h" />

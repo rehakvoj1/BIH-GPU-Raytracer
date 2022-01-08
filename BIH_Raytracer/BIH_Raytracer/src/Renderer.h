@@ -2,6 +2,7 @@
 
 #include "glad/glad.h"
 #include "Constants.h"
+#include "Camera.h"
 
 // cuda includes
 #include <cuda_runtime.h>
@@ -23,8 +24,10 @@ private:
     void CreateTextureDst();
     void CreateCUDABuffers();
     void InitQuad();
+    void InitCamera();
 
 private:
+    Camera* d_camera;
     GLuint m_quadTexture;
     GLuint m_shaderProgram;
     cudaGraphicsResource* m_cudaTexResultRes;

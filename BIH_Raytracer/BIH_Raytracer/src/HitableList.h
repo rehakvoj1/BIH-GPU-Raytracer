@@ -5,7 +5,7 @@
 class HitableList : public Hitable {
 public:
     __device__ HitableList();
-    __device__ HitableList( Hitable** l, int n );
+    __host__ HitableList( Hitable** l, int n );
     __device__ virtual bool Hit( const Ray& r, float tmin, float tmax, HitRecord& rec ) const;
     
     Hitable** list;

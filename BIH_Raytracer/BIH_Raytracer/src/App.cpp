@@ -4,7 +4,7 @@
 #include <filesystem>
 #include "Triangle.h"
 
-App::App() {
+App::App() : d_world(nullptr) {
 }
 
 App::~App() {
