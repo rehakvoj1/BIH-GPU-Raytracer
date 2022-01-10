@@ -3,6 +3,7 @@
 #include "glad/glad.h"
 #include "Constants.h"
 #include "Camera.h"
+#include "HitableList.h"
 
 // cuda includes
 #include <cuda_runtime.h>
@@ -18,17 +19,15 @@ class Renderer {
 public:
 	__host__ Renderer();
     __host__ void Init();
-    __host__ void Render();
+    __host__ void Render(HitableList& world);
 
 private:
-    void Launch_cudaRender( dim3 grid, dim3 block, int sbytes,
-                             unsigned int* g_odata, int imgw );
+    void Launch_cudaRender( unsigned int* g_odata, HitableList& world );
     void Launch_cudaRandInit(curandState * rand_state);
     __host__ GLuint CompileGLSLprogram();
     __host__ void CreateTextureDst();
     __host__ void CreateCUDABuffers();
     __host__ void InitQuad();
-    __host__ void InitCamera();
     __host__ void InitRand();
     
 private:

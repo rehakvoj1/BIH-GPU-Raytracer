@@ -16,8 +16,15 @@ void check_cuda( cudaError_t result, char const* const func, const char* const f
 	}
 }
 
-__host__ Renderer::Renderer() : d_camera(nullptr), m_quadTexture(0), m_shaderProgram(0), m_cudaTexResultRes( nullptr ), m_cudaDestResource(nullptr),
-					   m_quadVAO(0), m_quadVBO(0), m_quadEBO(0)
+__host__ Renderer::Renderer() :	d_rand_state(nullptr), 
+								d_camera(nullptr), 
+								m_quadTexture(0), 
+								m_shaderProgram(0), 
+								m_cudaTexResultRes( nullptr ), 
+								m_cudaDestResource(nullptr),
+								m_quadVAO(0), 
+								m_quadVBO(0),
+								m_quadEBO(0)
 {
 }
 
@@ -32,13 +39,17 @@ __host__ void Renderer::Init() {
 	m_threads = { THREADS_X, THREADS_Y, 1 };
 	m_blocks = { SCREEN_WIDTH / THREADS_X + 1, SCREEN_HEIGHT / THREADS_Y + 1, 1 };
 
+	// init Camera
+	d_camera = new Camera( glm::vec3( 0.0, 0.0, -1300.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
+
+	
 	CreateCUDABuffers();
 	InitQuad();
-	InitCamera();
+	InitRand();
 }
 
-__host__ void Renderer::Render() {
-	Launch_cudaRender( m_blocks, m_threads, 0, m_cudaDestResource, SCREEN_WIDTH );
+__host__ void Renderer::Render(HitableList& world) {
+	Launch_cudaRender( m_cudaDestResource, world );
 	checkCudaErrors( cudaGetLastError() );
 	checkCudaErrors( cudaDeviceSynchronize() );
 
@@ -185,12 +196,6 @@ __host__ void Renderer::InitQuad() {
 	// texture coord attribute
 	glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), (void*)( 3 * sizeof( float ) ) );
 	glEnableVertexAttribArray( 1 );
-}
-
-__host__ void Renderer::InitCamera() {
-	Camera camera( glm::vec3( 0.0, 0.0, 0.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
-	cudaMalloc( &d_camera, sizeof( Camera ) );
-	cudaMemcpy( d_camera, &camera, sizeof( Camera ), cudaMemcpyHostToDevice );
 }
 
 __host__ void Renderer::InitRand() {

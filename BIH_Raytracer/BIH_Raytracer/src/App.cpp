@@ -2,9 +2,10 @@
 #include "Model.h"
 #include <iostream>
 #include <filesystem>
-#include "Triangle.h"
+#include <cmath>
 
-App::App() : d_world(nullptr) {
+
+App::App() {
 }
 
 App::~App() {
@@ -48,26 +49,35 @@ GLFWwindow* App::NewWindow( int width, int height, std::string title ) {
 }
 
 void App::LoadModels() {
+	
 	std::vector<Model> models;
 	models.emplace_back( "resources/sponza/sponza.obj" );
 	
-	std::vector<Triangle> faces;
+	int triangleCnt = 0;
 	for ( auto& model : models ) {
-		for ( auto& mesh : model.meshes ) {
-			for ( unsigned int i = 0; i < mesh.indices.size(); i += 3 ) {
-				Vertex v1 = mesh.vertices[mesh.indices[i    ]];
-				Vertex v2 = mesh.vertices[mesh.indices[i + 1]];
-				Vertex v3 = mesh.vertices[mesh.indices[i + 2]];
-				faces.emplace_back( v1, v2, v3 );
-			}
+		for ( int i = 0; i < model.meshes.size(); ++i ) {
+			triangleCnt += (model.meshes[i].indices.size() / 3);
 		}
 	}
 
-	Triangle* triangleFaces = nullptr;
-	cudaMalloc( &triangleFaces, faces.size() * sizeof( Triangle ) );
-	cudaMemcpy( triangleFaces, faces.data(), faces.size() * sizeof( Triangle ), cudaMemcpyHostToDevice );
-	Hitable* pHitable = static_cast<Hitable*>( triangleFaces );
-	d_world = new HitableList( &pHitable, faces.size() );
+	m_deviceWorld = new HitableList;
+	m_deviceWorld->m_listSize = triangleCnt;
+	cudaMallocManaged( &( m_deviceWorld->m_list ), triangleCnt * sizeof( Triangle ) );
+
+	
+	int triangleIdx = triangleCnt;
+	for ( auto& model : models ) {
+		for ( auto& mesh : model.meshes ) {
+			for ( int i = 0; i < mesh.indices.size(); i += 3 ) {
+				Vertex v1 = mesh.vertices[ mesh.indices[i] ];
+				Vertex v2 = mesh.vertices[ mesh.indices[i + 1] ];
+				Vertex v3 = mesh.vertices[ mesh.indices[i + 2] ];
+				Triangle t( v1, v2, v3 );
+				memcpy( m_deviceWorld->m_list + ( triangleCnt - triangleIdx ), &t, sizeof( Triangle ) );
+				triangleIdx--;
+			}
+		}
+	}
 }
 
 
@@ -83,7 +93,7 @@ void App::Run() {
 
 		m_window->ShowFPS( 1.0f / deltaTime );
 
-		m_renderer->Render();
+		m_renderer->Render(*m_deviceWorld);
 		glfwSwapBuffers( m_window->GetWindow() );
 		glfwPollEvents();
 	}

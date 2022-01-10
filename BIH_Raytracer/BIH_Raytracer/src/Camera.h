@@ -1,10 +1,15 @@
 #pragma once
 #include "Ray.h"
+#include "Managed.cu"
 
-class Camera {
+class Camera : public Managed {
 public:
-	__host__ Camera( glm::vec3 origin, float aspectRatio );
-	__device__ Ray GetRay( float u, float v );
+	 Camera( glm::vec3 origin, float aspectRatio );
+	 Camera( const Camera& c );
+	 __device__ Ray GetRay( float u, float v );
+
+	 Camera& operator=( const Camera& c );
+	 
 
 	glm::vec3 m_origin;
 	glm::vec3 m_lowerLeftCorner;

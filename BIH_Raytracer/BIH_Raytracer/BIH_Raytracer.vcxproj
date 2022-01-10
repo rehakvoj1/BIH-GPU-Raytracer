@@ -19,12 +19,16 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="src\Camera.cu" />
     <CudaCompile Include="src\CUDAKernels.cu" />
+    <CudaCompile Include="src\HitableList.cu" />
     <CudaCompile Include="src\main.cpp" />
+    <CudaCompile Include="src\Managed.cu" />
+    <CudaCompile Include="src\Ray.cu" />
+    <CudaCompile Include="src\Triangle.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp" />
-    <ClCompile Include="src\HitableList.cpp" />
     <ClCompile Include="src\Ray.cpp" />
     <ClCompile Include="src\Hitable.cpp" />
     <ClCompile Include="src\Model.cpp" />
@@ -646,6 +650,7 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <Include>$(ProjectDir)src;%(Include)</Include>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -668,6 +673,7 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <Include>$(ProjectDir)src;%(Include)</Include>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
