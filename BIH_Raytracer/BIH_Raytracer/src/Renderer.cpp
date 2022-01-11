@@ -40,7 +40,7 @@ __host__ void Renderer::Init() {
 	m_blocks = { SCREEN_WIDTH / THREADS_X + 1, SCREEN_HEIGHT / THREADS_Y + 1, 1 };
 
 	// init Camera
-	d_camera = new Camera( glm::vec3( 0.0, 0.0, -1300.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
+	d_camera = new Camera( glm::vec3( 0.0, 0.0, -3000.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
 
 	
 	CreateCUDABuffers();
