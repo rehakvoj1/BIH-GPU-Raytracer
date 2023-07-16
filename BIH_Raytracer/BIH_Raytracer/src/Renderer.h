@@ -3,12 +3,13 @@
 #include "glad/glad.h"
 #include "Constants.h"
 #include "Camera.h"
-#include "HitableList.h"
+#include "GPUArrayManager.h"
 
 // cuda includes
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "curand_kernel.h"
+#include "Tree.cuh"
 #include <iostream>
 
 
@@ -19,11 +20,17 @@ class Renderer {
 public:
 	__host__ Renderer();
     __host__ void Init();
-    __host__ void Render(HitableList& world);
+    __host__ void Render(GPUArrayManager& gpuArrayManager);
+    __host__ void PrintMCs(GPUArrayManager& gpuArrayManager);
 
 private:
-    void Launch_cudaRender( unsigned int* g_odata, HitableList& world );
-    void Launch_cudaRandInit(curandState * rand_state);
+    void Launch_cudaRender( unsigned int* g_odata, GPUArrayManager& gpuArrayManager );
+    void Launch_cudaRandInit( curandState * rand_state );
+    void Launch_BuildTree(GPUArrayManager& gpuArrayManager);
+//    void Launch_PrepareLeafNodes( HitableList& world, Tree& tree );
+//    void Launch_InitLeafNodes(Tree& tree, uint32_t min, uint32_t max );
+    void Launch_MakeMortonCodesUnique( GPUArrayManager& gpuArrayManager );
+    void Launch_FindClipPlanes(GPUArrayManager& gpuArrayManager);
     __host__ GLuint CompileGLSLprogram();
     __host__ void CreateTextureDst();
     __host__ void CreateCUDABuffers();
@@ -43,6 +50,8 @@ private:
 
     dim3 m_blocks;
     dim3 m_threads;
+
+    bool bNeedRebuildHashtable{ true };
 
 private:
 	const char* m_texVertexShader = 

@@ -2,8 +2,11 @@
 
 #include "Window.h"
 #include "Renderer.h"
-#include "HitableList.h"
-#include "Triangle.h"
+#include "Triangle.cuh"
+#include "Tree.cuh"
+#include "GPUArrayManager.h"
+
+#include <thrust/device_ptr.h>
 
 class App {
 public:
@@ -13,12 +16,12 @@ public:
 
 	// -------- WINDOW ------- //
 	GLFWwindow* NewWindow( int width, int height, std::string title );
-	void LoadModels();
+	void LoadModels(const std::string meshFile);
 	void Run();
 
 private:
 	std::unique_ptr<Window> m_window;
 	std::unique_ptr<Renderer> m_renderer;
-	HitableList* m_deviceWorld;
+	std::unique_ptr<GPUArrayManager> m_GPUArrayManager;
 };
 

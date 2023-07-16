@@ -21,11 +21,11 @@ void Model::LoadModel( std::string const& path ) {
     directory = path.substr( 0, path.find_last_of( '/' ) );
     
     std::string fileLoaded = path.substr( path.find_last_of( '/' ) + 1, path.find_last_of( '.' ) - path.find_last_of( '/' ) - 1 );
-    std::cout << fileLoaded << " loaded." << std::endl;
+    std::cout << fileLoaded << " loaded..." << std::endl;
 
     // process ASSIMP's root node recursively
     ProcessNode( scene->mRootNode, scene );
-    std::cout << fileLoaded << " processed." << std::endl;
+    std::cout << fileLoaded << " processed..." << std::endl;
 }
 
 void Model::ProcessNode( aiNode* node, const aiScene* scene ) {

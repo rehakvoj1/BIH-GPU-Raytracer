@@ -19,22 +19,22 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="src\App.cpp" />
     <CudaCompile Include="src\Camera.cu" />
     <CudaCompile Include="src\CUDAKernels.cu" />
-    <CudaCompile Include="src\HitableList.cu" />
+    <CudaCompile Include="src\linearprobing.cu" />
     <CudaCompile Include="src\main.cpp" />
     <CudaCompile Include="src\Managed.cu" />
     <CudaCompile Include="src\Ray.cu" />
+    <CudaCompile Include="src\Renderer.cpp" />
     <CudaCompile Include="src\Triangle.cu" />
+    <CudaCompile Include="src\GPUArrayManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Ray.cpp" />
-    <ClCompile Include="src\Hitable.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
-    <ClCompile Include="src\Renderer.cpp" />
-    <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\glad\glad.c" />
     <ClCompile Include="src\glm\detail\glm.cpp" />
     <ClCompile Include="src\Stb-impl.cpp" />
@@ -42,10 +42,31 @@
     <ClCompile Include="src\Triangle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\GPUArrayManager.h" />
+    <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\Camera.h" />
-    <ClInclude Include="src\HitableList.h" />
+    <ClInclude Include="src\cuco\allocator.hpp" />
+    <ClInclude Include="src\cuco\detail\bitwise_compare.cuh" />
+    <ClInclude Include="src\cuco\detail\dynamic_map_kernels.cuh" />
+    <ClInclude Include="src\cuco\detail\error.hpp" />
+    <ClInclude Include="src\cuco\detail\hash_functions.cuh" />
+    <ClInclude Include="src\cuco\detail\pair.cuh" />
+    <ClInclude Include="src\cuco\detail\prime.hpp" />
+    <ClInclude Include="src\cuco\detail\probe_sequence_impl.cuh" />
+    <ClInclude Include="src\cuco\detail\static_map_kernels.cuh" />
+    <ClInclude Include="src\cuco\detail\static_multimap\kernels.cuh" />
+    <ClInclude Include="src\cuco\detail\utils.cuh" />
+    <ClInclude Include="src\cuco\detail\utils.hpp" />
+    <ClInclude Include="src\cuco\dynamic_map.cuh" />
+    <ClInclude Include="src\cuco\hash_functions.cuh" />
+    <ClInclude Include="src\cuco\probe_sequences.cuh" />
+    <ClInclude Include="src\cuco\sentinel.cuh" />
+    <ClInclude Include="src\cuco\static_map.cuh" />
+    <ClInclude Include="src\cuco\static_multimap.cuh" />
+    <ClInclude Include="src\cuco\traits.hpp" />
+    <ClInclude Include="src\cuco\utility\key_generator.hpp" />
+    <ClInclude Include="src\linearprobing.h" />
     <ClInclude Include="src\Ray.h" />
-    <ClInclude Include="src\Hitable.h" />
     <ClInclude Include="src\assimp\aabb.h" />
     <ClInclude Include="src\assimp\ai_assert.h" />
     <ClInclude Include="src\assimp\anim.h" />
@@ -374,8 +395,9 @@
     <ClInclude Include="src\glm\vec4.hpp" />
     <ClInclude Include="src\glm\vector_relational.hpp" />
     <ClInclude Include="src\stb_image.h" />
+    <ClInclude Include="src\Tree.cuh" />
     <ClInclude Include="src\Window.h" />
-    <ClInclude Include="src\Triangle.h" />
+    <ClInclude Include="src\Triangle.cuh" />
   </ItemGroup>
   <ItemGroup>
     <None Include="libs\assimp-vc142-mt.dll" />
@@ -391,6 +413,11 @@
     <None Include="src\assimp\SmoothingGroups.inl" />
     <None Include="src\assimp\vector2.inl" />
     <None Include="src\assimp\vector3.inl" />
+    <None Include="src\cuco\detail\dynamic_map.inl" />
+    <None Include="src\cuco\detail\static_map.inl" />
+    <None Include="src\cuco\detail\static_multimap\device_view_impl.inl" />
+    <None Include="src\cuco\detail\static_multimap\static_multimap.inl" />
+    <None Include="src\cuco\detail\__config" />
     <None Include="src\glm\detail\func_common.inl" />
     <None Include="src\glm\detail\func_common_simd.inl" />
     <None Include="src\glm\detail\func_exponential.inl" />
@@ -556,9 +583,10 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
+    <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -569,7 +597,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.3.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.0.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -635,12 +663,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
+    <CudaCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
+    </CudaCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -652,6 +680,13 @@
       <Include>$(ProjectDir)src;%(Include)</Include>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
+    <ClCompile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -661,6 +696,10 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <LanguageStandard_C>Default</LanguageStandard_C>
+      <EnableModules>true</EnableModules>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -668,16 +707,22 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;assimp-vc142-mt.lib;IrrXML.lib;zlib.lib;zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;assimp-vc142-mt.lib;IrrXML.lib;zlib.lib;zlibstatic.lib;cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <Include>$(ProjectDir)src;%(Include)</Include>
+      <Include>$(ProjectDir)src;$(CudaToolkitIncludeDir);%(Include)</Include>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <CodeGeneration>compute_75,sm_75</CodeGeneration>
+      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
+    <CudaLink>
+      <AdditionalDependencies>cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </CudaLink>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.3.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.0.targets" />
   </ImportGroup>
 </Project>
