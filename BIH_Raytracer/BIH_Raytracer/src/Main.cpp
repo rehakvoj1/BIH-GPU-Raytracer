@@ -52,7 +52,7 @@ int main() {
 		do {
 			std::cout << "Enter mesh filename:" << std::endl;
 			std::cin >> meshFilename;
-			fileExists = std::filesystem::exists("resources/buddha/" + meshFilename + ".obj");
+			fileExists = std::filesystem::exists("resources/" + meshFilename + "/" + meshFilename + ".obj");
 
 			if ( fileExists )
 				break;
@@ -60,7 +60,7 @@ int main() {
 				std::cout << "File doesn't exist. Try again..." << std::endl;
 
 		} while ( !fileExists );
-		app.LoadModels( "resources/buddha/" + meshFilename + ".obj");
+		app.LoadModels( "resources/" + meshFilename + "/" + meshFilename + ".obj");
 		app.Run();
 	}
 
