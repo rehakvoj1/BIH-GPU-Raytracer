@@ -764,7 +764,7 @@ __host__ void Renderer::CreateCUDABuffers() {
 	unsigned int num_texels = SCREEN_WIDTH * SCREEN_HEIGHT;
 	unsigned int num_values = num_texels * 4;
 	unsigned int size_tex_data = sizeof( GLubyte ) * num_values;
-	checkCudaErrors( cudaMallocManaged( (void**)&m_cudaDestResource, size_tex_data ) );
+	checkCudaErrors( cudaMalloc( (void**)&m_cudaDestResource, size_tex_data ) );
 }
 
 __host__ void Renderer::InitQuad() {

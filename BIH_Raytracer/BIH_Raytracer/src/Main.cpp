@@ -35,7 +35,10 @@
 #define NOMINMAX
 
 #include <Windows.h>
-
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <filesystem>
 
 
 int main() {
@@ -44,7 +47,20 @@ int main() {
 
 	App app;
 	if ( app.NewWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Bounding Interval Hierarchy Raytracer" ) ) {
-		app.LoadModels( "resources/buddha/buddha.obj" );
+		std::string meshFilename;
+		bool fileExists = false;
+		do {
+			std::cout << "Enter mesh filename:" << std::endl;
+			std::cin >> meshFilename;
+			fileExists = std::filesystem::exists("resources/buddha/" + meshFilename + ".obj");
+
+			if ( fileExists )
+				break;
+			else
+				std::cout << "File doesn't exist. Try again..." << std::endl;
+
+		} while ( !fileExists );
+		app.LoadModels( "resources/buddha/" + meshFilename + ".obj");
 		app.Run();
 	}
 

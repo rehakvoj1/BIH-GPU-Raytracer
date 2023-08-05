@@ -43,7 +43,7 @@ private:
     GLuint m_quadTexture;
     GLuint m_shaderProgram;
     cudaGraphicsResource* m_cudaTexResultRes;
-    unsigned int* m_cudaDestResource; // CUDAMALLOCMANAGED - ZMENIT ZPATKY NA CUDAMALLOC
+    unsigned int* m_cudaDestResource; 
     unsigned int m_quadVAO;
     unsigned int m_quadVBO;
     unsigned int m_quadEBO;
