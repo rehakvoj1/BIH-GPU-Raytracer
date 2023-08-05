@@ -10,9 +10,9 @@
 class Ray {
 public:
     __device__ Ray();
-    __device__ Ray( const glm::vec3& a, const glm::vec3& b );
-    __device__ glm::vec3 Origin() const;
-    __device__ glm::vec3 Direction() const;
+    __device__ __host__ Ray( const glm::vec3& a, const glm::vec3& b );
+    __device__ __host__ glm::vec3 Origin() const;
+    __device__ __host__ glm::vec3 Direction() const;
     __device__ glm::vec3 PointAtParameter( float t ) const;
     
 

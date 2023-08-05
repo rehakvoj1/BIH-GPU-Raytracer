@@ -34,6 +34,9 @@ public:
 	void SetUniqueMCSize(int size);
 	int  GetUniqueMCSize();
 
+	void ResetClipPlanes();
+	void ResetTrisIdxs();
+
 
 private:
 	int m_trisSize;

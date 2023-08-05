@@ -10,15 +10,17 @@ struct HitRecord {
 	glm::vec3 pointOfIntersect;
 	glm::vec3 normal;
 	double t;
+	int triangleIdx;
 };
 
 struct TreeInternalNode {
 	float t_clipPlanes[2];
 	int t_axis; // 0 == x; 1 == y; 2 == z
-	bool isLeftLeaf;
-	bool isRightLeaf;
+	bool isLeaf[2];
 	int children[2];
 	int parent;
+	int ID;
+	bool traversed;
 };
 
 struct StackElement {

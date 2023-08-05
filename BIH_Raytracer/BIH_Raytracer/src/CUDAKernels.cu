@@ -14,22 +14,25 @@
 #include "Tree.cuh"
 
 
-__device__ bool RayTriangleIntersection(const Triangle& triangle, const Ray& ray) {
+__device__ bool RayTriangleIntersection(const Triangle& triangle, const Ray& ray, float& outT) {
     glm::vec3 v0v1 = triangle.v1 - triangle.v0;
     glm::vec3 v0v2 = triangle.v2 - triangle.v0;
+    
+    //printf("ray origin: [%.2f,%.2f,%.2f]\n", ray.Origin().x, ray.Origin().y, ray.Origin().z);
+    //printf("ray dir: [%.2f,%.2f,%.2f]\n", ray.Direction().x, ray.Direction().y, ray.Direction().z);
 
     glm::vec3 pvec = glm::cross(ray.Direction(), v0v2);
 
-    float det = glm::dot(v0v1, pvec);
+    float det = glm::dot(v0v1,pvec);
 
     if ( det < 0.000001 )
         return false;
 
     float invDet = 1.0 / det;
 
-    glm::vec3 tvec = ray.Origin() - triangle.v1;
+    glm::vec3 tvec = ray.Origin() - triangle.v0;
 
-    float u = dot(tvec, pvec) * invDet;
+    float u = dot(tvec,pvec) * invDet;
 
     if ( u < 0 || u > 1 )
         return false;
@@ -41,6 +44,8 @@ __device__ bool RayTriangleIntersection(const Triangle& triangle, const Ray& ray
     if ( v < 0 || u + v > 1 )
         return false;
 
+    outT = glm::dot(v0v2,qvec) * invDet;
+    
     return true;
 }
 
@@ -140,18 +145,91 @@ __device__ bool IntersectNode(TreeInternalNode* BIHTree,
 
 
 
-    if ( currNode.isLeftLeaf || currNode.isRightLeaf ) {
+    //if ( currNode.isLeftLeaf || currNode.isRightLeaf ) {
         // currNode.leftChild/rightChild <= index do pole FirstIdxs
         // pole duplicatesCnts mi da pocet trojuhelniku
         // ty proiteruju a zjistim nejmensi "t", normalu a pointOfIntersect
         // to strcim do HitRecord
         return true;
+    //}
+}
+
+__device__ bool TraverseTriangles(  int BihSize,
+                                    TreeInternalNode* BIHTree,
+                                    int* firstIdxs,
+                                    uint32_t* duplicatesCnts,
+                                    Triangle* triangles,
+                                    uint32_t* triangleIdxs,
+                                    const Ray& r,
+                                    HitRecord& outRecord)
+{
+    float t = FLT_MAX;
+    for ( int i = 0; i < BihSize; i++ ) {
+        if ( BIHTree[i].isLeaf[0] ) {
+            int umcIdx = BIHTree[i].children[0];
+            int firstIdx = firstIdxs[umcIdx];
+            int duplicateCnt = duplicatesCnts[umcIdx];
+            
+            for ( int j = firstIdx; j < firstIdx + duplicateCnt; j++ ) {
+                int triangleIdx = triangleIdxs[j];
+                if ( RayTriangleIntersection(triangles[triangleIdx], r, t) ) {
+                    if ( t > 0 && t < outRecord.t ) {
+                        outRecord.t = t;
+                        outRecord.triangleIdx = i;
+                    }
+                }
+            }
+        }
+
+        if ( BIHTree[i].isLeaf[1] ) {
+            int umcIdx = BIHTree[i].children[1];
+            int firstIdx = firstIdxs[umcIdx];
+            int duplicateCnt = duplicatesCnts[umcIdx];
+
+            for ( int j = firstIdx; j < firstIdx + duplicateCnt; j++ ) {
+                int triangleIdx = triangleIdxs[j];
+                if ( RayTriangleIntersection(triangles[triangleIdx], r, t) ) {
+                    if ( t > 0 && t < outRecord.t ) {
+                        outRecord.t = t;
+                        outRecord.triangleIdx = i;
+                    }
+                }
+            }
+        }
+
+    }
+    return outRecord.triangleIdx >= 0;
+}
+
+
+
+__device__ void FindNearestTriangle( int* firstIdxs,
+                                      uint32_t* duplicatesCnts,
+                                      Triangle* triangles,
+                                      uint32_t* triangleIdxs,
+                                      const Ray& r,
+                                      int childIdx,
+                                      HitRecord& outRecord ) 
+{
+    float t = FLT_MAX;
+    for ( int i = firstIdxs[childIdx]; i < firstIdxs[childIdx] + duplicatesCnts[childIdx]; i++ ) {
+        uint32_t triangleIdx = triangleIdxs[i];
+        if ( RayTriangleIntersection(triangles[triangleIdx], r, t) ) {
+            if ( t > 0 && t < outRecord.t ) {
+                outRecord.t = t;
+                outRecord.triangleIdx = i;
+            }
+        }
     }
 }
 
 
 __device__ bool TraverseTree(const Ray& r,
                              TreeInternalNode* BIHTree,
+                             int* firstIdxs,
+                             uint32_t* duplicatesCnts,
+                             Triangle* triangles,
+                             uint32_t* triangleIdxs,
                              float3 sceneBBoxLo,
                              float3 sceneBBoxHi,
                              HitRecord& outRecord) {
@@ -183,6 +261,8 @@ __device__ bool TraverseTree(const Ray& r,
     if ( tzmax < tMax )
         tMax = tzmax;
 
+
+    
     TreeInternalNode* currNode = BIHTree;
     float t[2];
     int splitAxis = -1;
@@ -191,38 +271,58 @@ __device__ bool TraverseTree(const Ray& r,
     float invDir = INFINITY;
     int near = -1;
     int far = -1;
-    bool foundLeaf = false;
     
+     
     StackElement stack[64];
     int stackIdx = 0;
     stack[stackIdx].t_node = nullptr;
     stackIdx++;
-
     while( currNode != nullptr ) {
 
-        if ( currNode->isLeftLeaf || currNode->isRightLeaf ) {
-            foundLeaf = true;
-            break;
-            // break is temporary. Full algorithm -> compute T and pop from the stack
+        splitAxis = currNode->t_axis;
+        dir = r.Direction()[splitAxis];
+        org = r.Origin()[splitAxis];
+        invDir = r.invDir[splitAxis];
+        near = r.sign[splitAxis];
+        far = 1 - near;
+        t[0] = ( currNode->t_clipPlanes[0] - org ) * invDir;
+        t[1] = ( currNode->t_clipPlanes[1] - org ) * invDir;
+
+        
+        bool tMinLessThanNear = ( tMin < t[near] );
+        bool tMaxLessThanFar = ( tMax < t[far] );
+
+        bool noIntersection = ( !tMinLessThanNear && tMaxLessThanFar );
+        bool nearIntersection = ( tMinLessThanNear && tMaxLessThanFar );
+        bool farIntersection = ( !tMinLessThanNear && !tMaxLessThanFar );
+        bool bothIntersection = ( tMinLessThanNear && !tMaxLessThanFar );
+
+        if ( currNode->isLeaf[near] || currNode->isLeaf[far] ) {
+            if ( currNode->isLeaf[near] && !currNode->isLeaf[far] )
+            {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+                currNode = &( BIHTree[currNode->children[far]] );
+                tMin = t[far];
+            }
+            else if( currNode->isLeaf[far] && !currNode->isLeaf[near] )
+            {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+                currNode = &( BIHTree[currNode->children[near]] );
+                tMax = t[near];
+            }
+            else {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+                stackIdx--;
+                currNode = stack[stackIdx].t_node;
+                tMin = stack[stackIdx].t_tMin;
+                tMax = stack[stackIdx].t_tMax;
+
+            }
         }
         else 
         {
-            splitAxis = currNode->t_axis;
-            dir = r.Direction()[splitAxis];
-            org = r.Origin()[splitAxis];
-            invDir = r.invDir[splitAxis];
-            near = r.sign[splitAxis];
-            far = 1 - near;
-            t[0] = ( currNode->t_clipPlanes[0] - org ) * invDir;
-            t[1] = ( currNode->t_clipPlanes[1] - org ) * invDir;
-
-            bool tMinLessThanNear = ( tMin < t[near] );
-            bool tMaxLessThanFar = ( tMax < t[far] );
             
-            bool noIntersection = ( !tMinLessThanNear && tMaxLessThanFar );
-            bool nearIntersection = ( tMinLessThanNear && tMaxLessThanFar );
-            bool farIntersection = ( !tMinLessThanNear && !tMaxLessThanFar );
-            bool bothIntersection = ( tMinLessThanNear && !tMaxLessThanFar );
 
             if ( noIntersection ) {
                 stackIdx--;
@@ -233,12 +333,17 @@ __device__ bool TraverseTree(const Ray& r,
             else
             {
                 if ( bothIntersection ) {
-                    currNode = &(BIHTree[currNode->children[near]]);
                     stack[stackIdx].t_node = &( BIHTree[currNode->children[far]] );
+                    stack[stackIdx].t_tMin = t[far];
+                    stack[stackIdx].t_tMax = tMax;
                     stackIdx++;
+                    currNode = &(BIHTree[currNode->children[near]]);
+                    tMax = t[near];
                 }
                 else {
                     currNode = nearIntersection ? &( BIHTree[currNode->children[near]] ) : &( BIHTree[currNode->children[far]] );
+                    tMin = nearIntersection ? tMin : t[far];
+                    tMax = nearIntersection ? t[near] : tMax;
                 }
             }
         }
@@ -247,28 +352,42 @@ __device__ bool TraverseTree(const Ray& r,
 
 
     } 
-
-    return foundLeaf;
+    return ( outRecord.triangleIdx >= 0 );
 }
 
 __device__ glm::vec3 Color( const Ray& r, 
-                           TreeInternalNode* BIHTree, 
+                           TreeInternalNode* BIHTree,
+                           int* firstIdxs,
+                           uint32_t* duplicatesCnts,
+                           Triangle* triangles,
+                           uint32_t* triangleIdxs,
                            float3 sceneBBoxLo, 
-                           float3 sceneBBoxHi ) {
+                           float3 sceneBBoxHi,
+                           int trisSize,
+                           int bihSize) {
     HitRecord rec;
-    if ( TraverseTree(r, BIHTree, sceneBBoxLo, sceneBBoxHi, rec) ) {   
+    rec.triangleIdx = -1;
+    rec.t = FLT_MAX;
+    //if( TraverseTriangles(bihSize, BIHTree,firstIdxs,duplicatesCnts,triangles,triangleIdxs,r,rec) ){
+    if ( TraverseTree(r, BIHTree, firstIdxs, duplicatesCnts, triangles, triangleIdxs, sceneBBoxLo, sceneBBoxHi, rec) ) {   
         return glm::vec3( 255.0f, 255.0f, 0.0f );
     } else {
         return glm::vec3( 20.0f, 20.0f, 40.0f );
     }
 }
 
-__global__ void cudaRender( unsigned int* g_odata, 
-                           Camera* cam, 
+__global__ void cudaRender(unsigned int* g_odata,
+                           Camera* cam,
                            curandState* rand_state,
                            TreeInternalNode* BIHTree,
+                           int* firstIdxs,
+                           uint32_t* duplicatesCnts,
+                           Triangle* triangles,
+                           uint32_t* triangleIdxs,
                            float3 sceneBBoxLo,
-                           float3 sceneBBoxHi ) {
+                           float3 sceneBBoxHi,
+                           int trisSize,
+                           int bihSize ) {
     
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -283,7 +402,7 @@ __global__ void cudaRender( unsigned int* g_odata,
         float u = float( i + curand_uniform( &local_rand_state ) ) / float( SCREEN_WIDTH );
         float v = float( j + curand_uniform( &local_rand_state ) ) / float( SCREEN_HEIGHT );
         Ray r = cam->GetRay( u, v );
-        col += Color( r, BIHTree, sceneBBoxLo, sceneBBoxHi );
+        col += Color( r, BIHTree, firstIdxs, duplicatesCnts, triangles, triangleIdxs, sceneBBoxLo, sceneBBoxHi, trisSize, bihSize );
     }
     rand_state[pixel_index] = local_rand_state;
     col /= float( RAYS_PER_PIXEL );
@@ -293,9 +412,26 @@ __global__ void cudaRender( unsigned int* g_odata,
 
 void Renderer::Launch_cudaRender( unsigned int* g_odata, GPUArrayManager& gpuArrayManager ) {
     TreeInternalNode* d_BIHTree = thrust::raw_pointer_cast(gpuArrayManager.GetBIHTree().data());
+    int* d_firstIdxs = thrust::raw_pointer_cast(gpuArrayManager.GetFirstIdxs().data());
+    uint32_t* d_duplicatesCnt = thrust::raw_pointer_cast(gpuArrayManager.GetDuplicatesCnts().data());
+    Triangle* d_triangles = thrust::raw_pointer_cast(gpuArrayManager.GetTriangles().data());
+    uint32_t* d_triangleIdxs = thrust::raw_pointer_cast(gpuArrayManager.GetTrisIndexes().data());
+    int d_trisSize = gpuArrayManager.GetTrisSize();
+    int d_bihSize = gpuArrayManager.GetBIHTreeSize();
     float3 sceneBBoxLo = gpuArrayManager.GetBBoxArrays().sceneBBoxLo;
     float3 sceneBBoxHi = gpuArrayManager.GetBBoxArrays().sceneBBoxHi;
-    cudaRender <<<m_blocks, m_threads, 0 >>> ( g_odata, d_camera, d_rand_state, d_BIHTree, sceneBBoxLo, sceneBBoxHi );
+    cudaRender <<<m_blocks, m_threads, 0 >>> ( g_odata, 
+                                               d_camera, 
+                                               d_rand_state, 
+                                               d_BIHTree,
+                                               d_firstIdxs,
+                                               d_duplicatesCnt,
+                                               d_triangles,
+                                               d_triangleIdxs,
+                                               sceneBBoxLo, 
+                                               sceneBBoxHi,
+                                               d_trisSize,
+                                               d_bihSize );
 }
 
 
@@ -528,13 +664,14 @@ __global__ void BuildTree( uint32_t* uniqueMCs, TreeInternalNode* BIHTree, int* 
     
     int split = idx + ( s * expansionDirection ) + min(expansionDirection, 0);
     TreeInternalNode& currentInternalNode = BIHTree[idx];
+    currentInternalNode.ID = idx;
     currentInternalNode.children[0] = split;
     currentInternalNode.children[1] = split + 1;
     
-    currentInternalNode.isLeftLeaf = min(idx, otherEnd) == split;
-    currentInternalNode.isRightLeaf = max(idx, otherEnd) == (split + 1);
+    currentInternalNode.isLeaf[0] = min(idx, otherEnd) == split;
+    currentInternalNode.isLeaf[1] = max(idx, otherEnd) == (split + 1);
     
-    if ( currentInternalNode.isLeftLeaf ) {
+    if ( currentInternalNode.isLeaf[0] ) {
         leafParents[split] = idx; // just for silence compiler. Now i have no clue what should be there
     } 
     else
@@ -542,7 +679,7 @@ __global__ void BuildTree( uint32_t* uniqueMCs, TreeInternalNode* BIHTree, int* 
         BIHTree[split].parent = idx;
     }
 
-    if ( currentInternalNode.isRightLeaf ) {
+    if ( currentInternalNode.isLeaf[1] ) {
         leafParents[split + 1] = idx; // just for silence compiler. Now i have no clue what should be there
     }
     else

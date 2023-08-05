@@ -78,8 +78,10 @@ bool GPUArrayManager::AllocateBIHTree(int size)
         node.t_axis = -1;
         node.t_clipPlanes[0] = std::numeric_limits<float>::lowest();
         node.t_clipPlanes[1] = std::numeric_limits<float>::max();
-        node.isLeftLeaf = false;
-        node.isRightLeaf = false;
+        node.isLeaf[0] = false;
+        node.isLeaf[1] = false;
+        node.ID = -1;
+        node.traversed = false;
     }
     m_BIHTree = h_Tree;
     if ( m_BIHTree.size() < size )
@@ -180,4 +182,19 @@ void GPUArrayManager::SetUniqueMCSize(int size)
 int GPUArrayManager::GetUniqueMCSize()
 {
     return m_uniqueMCSize;
+}
+
+void GPUArrayManager::ResetClipPlanes()
+{
+    thrust::host_vector<TreeInternalNode> h_BIH = GetBIHTree();
+    for ( auto& node : h_BIH ) {
+        node.t_clipPlanes[0] = std::numeric_limits<float>::lowest();
+        node.t_clipPlanes[1] = std::numeric_limits<float>::max();
+    }
+    m_BIHTree = h_BIH;
+}
+
+void GPUArrayManager::ResetTrisIdxs()
+{
+    thrust::sequence(thrust::device, m_trisIndexes.begin(), m_trisIndexes.begin() + GetTrisSize());
 }

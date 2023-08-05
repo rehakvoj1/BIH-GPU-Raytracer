@@ -679,6 +679,8 @@
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <Include>$(ProjectDir)src;%(Include)</Include>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <GenerateLineInfo>true</GenerateLineInfo>
+      <InterleaveSourceInPTX>true</InterleaveSourceInPTX>
     </CudaCompile>
     <ClCompile>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -686,6 +688,7 @@
       <SDLCheck>true</SDLCheck>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -700,6 +703,8 @@
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>true</EnableModules>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -715,6 +720,8 @@
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" %(AdditionalOptions)</AdditionalOptions>
+      <GenerateLineInfo>true</GenerateLineInfo>
+      <FastMath>true</FastMath>
     </CudaCompile>
     <CudaLink>
       <AdditionalDependencies>cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>

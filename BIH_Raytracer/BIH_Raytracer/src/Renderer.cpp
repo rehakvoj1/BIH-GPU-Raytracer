@@ -10,12 +10,26 @@
 #include "thrust/device_ptr.h"
 #include "thrust/iterator/constant_iterator.h"
 #include "thrust/iterator/counting_iterator.h"
+#include <algorithm>
 #include <chrono>
 #include <bitset>
 #include <vector>
 #include <deque>
 #include <stack>
+#include <iostream>
+#include <fstream>
+#include <random>
 
+float clip(float n, float lower, float upper) {
+	return std::max(lower, std::min(n, upper));
+}
+
+int CPUrgbToInt(float r, float g, float b) {
+	r = clip(r, 0.0f, 255.0f);
+	g = clip(g, 0.0f, 255.0f);
+	b = clip(b, 0.0f, 255.0f);
+	return ( int(b) << 16 ) | ( int(g) << 8 ) | int(r);
+}
 
 
 void BFS(TreeInternalNode* BIHTree ) {
@@ -33,9 +47,9 @@ void BFS(TreeInternalNode* BIHTree ) {
 			q.pop_front();
 			popped++;
 
-			if ( !curr.isLeftLeaf )
+			if ( !curr.isLeaf[0] )
 				q.push_back(BIHTree[curr.children[0]]);
-			if ( !curr.isRightLeaf )
+			if ( !curr.isLeaf[1] )
 				q.push_back(BIHTree[curr.children[1]]);
 		}
 		depth++;
@@ -82,7 +96,7 @@ __host__ void Renderer::Init() {
 	m_blocks = { SCREEN_WIDTH / THREADS_X + 1, SCREEN_HEIGHT / THREADS_Y + 1, 1 };
 
 	// init Camera
-	d_camera = new Camera( glm::vec3( 0.0, 0.0, -5.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
+	d_camera = new Camera( glm::vec3( 2.0, 0.0, -2.0 ), (float)SCREEN_WIDTH / SCREEN_HEIGHT );
 
 	//cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 100'000);
 	CreateCUDABuffers();
@@ -130,12 +144,280 @@ struct morton_functor {
 
 };
 
+bool CPURayTriangleIntersection(const Triangle& triangle, const Ray& ray, float& outT) {
+	glm::vec3 v0v1 = triangle.v1 - triangle.v0;
+	glm::vec3 v0v2 = triangle.v2 - triangle.v0;
+
+	//printf("ray origin: [%.2f,%.2f,%.2f]\n", ray.Origin().x, ray.Origin().y, ray.Origin().z);
+	//printf("ray dir: [%.2f,%.2f,%.2f]\n", ray.Direction().x, ray.Direction().y, ray.Direction().z);
+
+	glm::vec3 pvec = glm::cross(ray.Direction(), v0v2);
+
+	float det = glm::dot(v0v1, pvec);
+
+	if ( det < 0.000001 )
+		return false;
+
+	float invDet = 1.0 / det;
+
+	glm::vec3 tvec = ray.Origin() - triangle.v0;
+
+	float u = dot(tvec, pvec) * invDet;
+
+	if ( u < 0 || u > 1 )
+		return false;
+
+	glm::vec3 qvec = glm::cross(tvec, v0v1);
+
+	float v = glm::dot(ray.Direction(), qvec) * invDet;
+
+	if ( v < 0 || u + v > 1 )
+		return false;
+
+	outT = glm::dot(v0v2, qvec) * invDet;
+
+	return true;
+}
+
+void CPUFindNearestTriangle(int* firstIdxs,
+						 uint32_t* duplicatesCnts,
+						 Triangle* triangles,
+						 uint32_t* triangleIdxs,
+						 const Ray& r,
+						 int childIdx,
+						 HitRecord& outRecord)
+{
+	float t = FLT_MAX;
+	for ( int i = firstIdxs[childIdx]; i < firstIdxs[childIdx] + duplicatesCnts[childIdx]; i++ ) {
+		uint32_t triangleIdx = triangleIdxs[i];
+		if ( CPURayTriangleIntersection(triangles[triangleIdx], r, t) ) {
+			if ( t > 0 && t < outRecord.t ) {
+				outRecord.t = t;
+				outRecord.triangleIdx = i;
+			}
+		}
+	}
+}
+
+bool CPUTraverseTree(const Ray& r,
+				  TreeInternalNode* BIHTree,
+				  int* firstIdxs,
+				  uint32_t* duplicatesCnts,
+				  Triangle* triangles,
+				  uint32_t* triangleIdxs,
+				  float3 sceneBBoxLo,
+				  float3 sceneBBoxHi,
+				  HitRecord& outRecord) {
+
+	glm::vec3 sceneBBox[2]{ { sceneBBoxLo.x, sceneBBoxLo.y, sceneBBoxLo.z }, { sceneBBoxHi.x, sceneBBoxHi.y, sceneBBoxHi.z } };
+	float tymin, tymax, tzmin, tzmax;
+
+	
+	float tMin = ( sceneBBox[r.sign[0]].x - r.Origin().x ) * r.invDir.x;
+	float tMax = ( sceneBBox[1 - r.sign[0]].x - r.Origin().x ) * r.invDir.x;
+	tymin = ( sceneBBox[r.sign[1]].y - r.Origin().y ) * r.invDir.y;
+	tymax = ( sceneBBox[1 - r.sign[1]].y - r.Origin().y ) * r.invDir.y;
+
+	if ( ( tMin > tymax ) || ( tymin > tMax ) )
+		return false;
+
+	if ( tymin > tMin )
+		tMin = tymin;
+	if ( tymax < tMax )
+		tMax = tymax;
+
+	tzmin = ( sceneBBox[r.sign[2]].z - r.Origin().z ) * r.invDir.z;
+	tzmax = ( sceneBBox[1 - r.sign[2]].z - r.Origin().z ) * r.invDir.z;
+
+	if ( ( tMin > tzmax ) || ( tzmin > tMax ) )
+		return false;
+
+	if ( tzmin > tMin )
+		tMin = tzmin;
+	if ( tzmax < tMax )
+		tMax = tzmax;
+
+	//std::cout << "tmin: " << tMin << std::endl;
+	//std::cout << "tmax: " << tMax << std::endl;
+	//std::cout << "==========================" << std::endl;
+	TreeInternalNode* currNode = BIHTree;
+	float t[2];
+	int splitAxis = -1;
+	float dir = INFINITY;
+	float org = INFINITY;
+	float invDir = INFINITY;
+	int near = -1;
+	int far = -1;
+
+
+	StackElement stack[64];
+	int stackIdx = 0;
+	stack[stackIdx].t_node = nullptr;
+	stackIdx++;
+	while ( currNode != nullptr ) {
+
+		if ( currNode->ID == 9 ) {
+			currNode->traversed = true;
+		}
+
+		splitAxis = currNode->t_axis;
+		dir = r.Direction()[splitAxis];
+		org = r.Origin()[splitAxis];
+		invDir = r.invDir[splitAxis];
+		near = r.sign[splitAxis];
+		far = 1 - near;
+		t[0] = ( currNode->t_clipPlanes[0] - org ) * invDir;
+		t[1] = ( currNode->t_clipPlanes[1] - org ) * invDir;
+
+
+		bool tMinLessThanNear = ( tMin < t[near] );
+		bool tMaxLessThanFar = ( tMax < t[far] );
+
+		bool noIntersection = ( !tMinLessThanNear && tMaxLessThanFar );
+		bool nearIntersection = ( tMinLessThanNear && tMaxLessThanFar );
+		bool farIntersection = ( !tMinLessThanNear && !tMaxLessThanFar );
+		bool bothIntersection = ( tMinLessThanNear && !tMaxLessThanFar );
+
+
+		//std::cout << "clipPlane0: " << currNode->t_clipPlanes[0] << std::endl;
+		//std::cout << "clipPlane1: " << currNode->t_clipPlanes[1] << std::endl;
+		//std::cout << "t0: " << t[0] << std::endl;
+		//std::cout << "t1: " << t[1] << std::endl;
+		//std::cout << "noIntersection: " << (noIntersection ? "TRUE" : "FALSE") << std::endl;
+		//std::cout << "nearIntersection: " << (nearIntersection ? "TRUE" : "FALSE") << std::endl;
+		//std::cout << "farIntersection: " << (farIntersection ? "TRUE" : "FALSE") << std::endl;
+		//std::cout << "bothIntersection: " << (bothIntersection ? "TRUE" : "FALSE") << std::endl;
+		//std::cout << "----------------" << std::endl;
+
+
+		if ( currNode->isLeaf[near] || currNode->isLeaf[far] ) {
+			if ( currNode->isLeaf[near] && !currNode->isLeaf[far] )
+			{
+				CPUFindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+				currNode = &( BIHTree[currNode->children[far]] );
+			}
+			else if ( currNode->isLeaf[far] && !currNode->isLeaf[near] )
+			{
+				CPUFindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+				currNode = &( BIHTree[currNode->children[near]] );
+			}
+			else {
+				CPUFindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+				CPUFindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+				stackIdx--;
+				currNode = stack[stackIdx].t_node;
+				tMin = stack[stackIdx].t_tMin;
+				tMax = stack[stackIdx].t_tMax;
+
+			}
+			// break is temporary. Full algorithm -> compute T and pop from the stack
+		}
+		else
+		{
+
+
+			if ( noIntersection ) {
+				stackIdx--;
+				currNode = stack[stackIdx].t_node;
+				tMin = stack[stackIdx].t_tMin;
+				tMax = stack[stackIdx].t_tMax;
+			}
+			else
+			{
+				if ( bothIntersection ) {
+					stack[stackIdx].t_node = &( BIHTree[currNode->children[far]] );
+					stack[stackIdx].t_tMin = tMin;
+					stack[stackIdx].t_tMax = tMax;
+					stackIdx++;
+					currNode = &( BIHTree[currNode->children[near]] );
+				}
+				else {
+					currNode = nearIntersection ? &( BIHTree[currNode->children[near]] ) : &( BIHTree[currNode->children[far]] );
+					tMin = nearIntersection ? tMin : t[far];
+					tMax = nearIntersection ? t[near] : tMax;
+				}
+			}
+		}
+
+
+
+
+	}
+	//printf("NO: %d\nONE: %d\nBOTH: %d\n-----\n", noCnt, oneCnt, bothCnt);
+	if ( outRecord.triangleIdx == 0 ) printf("Triangle %d HIT.\n", outRecord.triangleIdx);
+	return ( outRecord.triangleIdx >= 0 );
+}
+
+
+glm::vec3 CPUColor(const Ray& r,
+				TreeInternalNode* BIHTree,
+				int* firstIdxs,
+				uint32_t* duplicatesCnts,
+				Triangle* triangles,
+				uint32_t* triangleIdxs,
+				float3 sceneBBoxLo,
+				float3 sceneBBoxHi,
+				int trisSize,
+				int bihSize) {
+	HitRecord rec;
+	rec.triangleIdx = -1;
+	rec.t = FLT_MAX;
+	//if( TraverseTriangles(bihSize, BIHTree,firstIdxs,duplicatesCnts,triangles,triangleIdxs,r,rec) ){
+	if ( CPUTraverseTree(r, BIHTree, firstIdxs, duplicatesCnts, triangles, triangleIdxs, sceneBBoxLo, sceneBBoxHi, rec) ) {
+		return glm::vec3(255.0f, 255.0f, 0.0f);
+	}
+	else {
+		return glm::vec3(20.0f, 20.0f, 40.0f);
+	}
+}
+
+void DebugRender(GPUArrayManager& gpuArrayManager, Camera* cam, unsigned int* g_odata ) {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0, 1);
+
+	thrust::host_vector<TreeInternalNode> h_BIH = gpuArrayManager.GetBIHTree();
+	thrust::host_vector<int> h_firstIdxs = gpuArrayManager.GetFirstIdxs();
+	thrust::host_vector<uint32_t> h_duplCnts = gpuArrayManager.GetDuplicatesCnts();
+	thrust::host_vector<Triangle> h_triangles = gpuArrayManager.GetTriangles();
+	thrust::host_vector<uint32_t> h_trisIdxs = gpuArrayManager.GetTrisIndexes();
+	float3 sceneBBoxLo = gpuArrayManager.GetBBoxArrays().sceneBBoxLo;
+	float3 sceneBBoxHi = gpuArrayManager.GetBBoxArrays().sceneBBoxHi;
+	int bihSize = gpuArrayManager.GetBIHTreeSize();
+	int trisSize = gpuArrayManager.GetTrisSize();
+
+
+//	std::cout << "before pixel iterating" << std::endl;
+	for ( int i = 0; i < SCREEN_WIDTH; i++ ) {
+		for ( int j = 0; j < SCREEN_HEIGHT; j++ ) {
+			int pixel_index = j * SCREEN_WIDTH + i;
+			glm::vec3 col(0, 0, 0);
+			for ( int s = 0; s < RAYS_PER_PIXEL; s++ ) {
+				float u = float(i + dis(gen)) / float(SCREEN_WIDTH);
+				float v = float(j + dis(gen)) / float(SCREEN_HEIGHT);
+				//std::cout << "==========================" << std::endl;
+				Ray r = cam->GetRay(u, v);
+				//std::cout << "Ray:" << pixel_index << "-" << s << std::endl;
+				col += CPUColor(r, h_BIH.data(), h_firstIdxs.data(), h_duplCnts.data(), h_triangles.data(), h_trisIdxs.data(), sceneBBoxLo, sceneBBoxHi, trisSize, bihSize);
+			}
+			col /= float(RAYS_PER_PIXEL);
+
+	//		std::cout << "Before godata" << std::endl;
+			g_odata[j * SCREEN_WIDTH + i] = CPUrgbToInt(col.r, col.g, col.b); // CUDAMALLOCMANAGED - ZMENIT ZPATKY NA CUDAMALLOC
+	//		std::cout << "After godata" << std::endl;
+		}
+	}
+
+	gpuArrayManager.GetBIHTree() = h_BIH;
+}
+
+bool clipPlanesFound = false;
 __host__ void Renderer::Render(GPUArrayManager& gpuArrayManager) {
 	//using std::chrono::high_resolution_clock;
 	//using std::chrono::duration_cast;
 	//using std::chrono::duration;
 	//using std::chrono::microseconds;
-	int trisSize = gpuArrayManager.GetTrisSize();
+	//int trisSize = gpuArrayManager.GetTrisSize();
 	//auto t1 = high_resolution_clock::now();
 	thrust::transform(thrust::device,
 					  gpuArrayManager.GetBBoxArrays().arrCenterNorm.begin(),
@@ -151,8 +433,11 @@ __host__ void Renderer::Render(GPUArrayManager& gpuArrayManager) {
 	//duration<double, std::micro> us_double = t2 - t1;
 	//std::cout << us_double.count() << "us\n";
 
+	gpuArrayManager.ResetTrisIdxs();
+	checkCudaErrors(cudaGetLastError());
+	checkCudaErrors(cudaDeviceSynchronize());
 
-	
+
 	thrust::stable_sort_by_key(thrust::device,
 						gpuArrayManager.GetMortonCodesVectorRef().begin(),
 						gpuArrayManager.GetMortonCodesVectorRef().begin() + gpuArrayManager.GetTrisSize(),
@@ -211,18 +496,39 @@ __host__ void Renderer::Render(GPUArrayManager& gpuArrayManager) {
 	checkCudaErrors( cudaGetLastError() );
 	checkCudaErrors( cudaDeviceSynchronize() );
 	
+	
+
 	Launch_FindClipPlanes(gpuArrayManager);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
 
-	thrust::host_vector<uint32_t> h_trisIdxs = gpuArrayManager.GetTrisIndexes();
-	thrust::host_vector<float3> h_centers = gpuArrayManager.GetBBoxArrays().arrCenter;
-	thrust::host_vector<uint32_t> h_UMCs = gpuArrayManager.GetUniqueMortonCodesVectorRef();
-	thrust::host_vector<TreeInternalNode> h_BIH = gpuArrayManager.GetBIHTree();
-	thrust::host_vector<uint32_t> h_duplCnts = gpuArrayManager.GetDuplicatesCnts();
-	thrust::host_vector<int> h_firstIdxs = gpuArrayManager.GetFirstIdxs();
-	thrust::host_vector<uint32_t> h_MCs = gpuArrayManager.GetMortonCodesVectorRef();
+	//thrust::host_vector<uint32_t> h_trisIdxs = gpuArrayManager.GetTrisIndexes();
+	//thrust::host_vector<float3> h_centers = gpuArrayManager.GetBBoxArrays().arrCenter;
+	//thrust::host_vector<uint32_t> h_UMCs = gpuArrayManager.GetUniqueMortonCodesVectorRef();
+	//
+	//thrust::host_vector<uint32_t> h_duplCnts = gpuArrayManager.GetDuplicatesCnts();
+	//thrust::host_vector<int> h_firstIdxs = gpuArrayManager.GetFirstIdxs();
+	//thrust::host_vector<uint32_t> h_MCs = gpuArrayManager.GetMortonCodesVectorRef();
+	//auto h_leafParents = gpuArrayManager.GetLeafParentIdxs();
+	//int BIHTreeSize = gpuArrayManager.GetBIHTreeSize();
+	//thrust::host_vector<float3> arrLo = gpuArrayManager.GetBBoxArrays().arrLo;
+	//thrust::host_vector<float3> arrHi = gpuArrayManager.GetBBoxArrays().arrHi;
+
+	// print UMCs
+	//for ( int i = 0; i < BIHTreeSize + 1; i++ ) {
+	//	std::cout << h_UMCs[i] << std::endl;
+	//}
+
+	//for ( int i = 0; i < BIHTreeSize + 1; i++ ) {
+	//	int trisIdx = h_trisIdxs[i];
+	//	std::cout << "Tris: " << trisIdx << std::endl;
+	//	std::cout << "BBoxLo: [" << arrLo[trisIdx].x << ", " << arrLo[trisIdx].y << ", " << arrLo[trisIdx].z << "]" << std::endl;
+	//	std::cout << "BBoxHi: [" << arrHi[trisIdx].x << ", " << arrHi[trisIdx].y << ", " << arrHi[trisIdx].z << "]" << std::endl;
+	//	std::cout << "------------" << std::endl;
+	//}
+	//
+	//std::cout << "==================" << std::endl;
 
 	//int UMCsCnt = 0;
 	//int BIHCnt = 0;
@@ -257,26 +563,83 @@ __host__ void Renderer::Render(GPUArrayManager& gpuArrayManager) {
 	//	std::cout << "----------------------------" << std::endl;
 	//}
 	
+	//for ( int i = 0; i < BIHTreeSize + 1; i++ ) {
+	//		
+	//	int firstIdx = h_firstIdxs[i];
+	//	uint32_t numOfDuplicates = h_duplCnts[i];
+	//	glm::vec3 bboxLoGLM = { arrLo[h_trisIdxs[firstIdx]].x, arrLo[h_trisIdxs[firstIdx]].y, arrLo[h_trisIdxs[firstIdx]].z };
+	//	glm::vec3 bboxHiGLM = { arrHi[h_trisIdxs[firstIdx]].x, arrHi[h_trisIdxs[firstIdx]].y, arrHi[h_trisIdxs[firstIdx]].z };
+	//	uint32_t bboxIdx = -1;
+	//	int trisIdx = -1;
+	//	for ( int j = firstIdx; j < firstIdx + numOfDuplicates; j++ )
+	//	{
+	//		bboxIdx = h_trisIdxs[j];
+	//		float3 bboxLo = arrLo[bboxIdx];
+	//		float3 bboxHi = arrHi[bboxIdx];
+	//
+	//		bboxLoGLM.x = std::min(bboxLoGLM.x, bboxLo.x);
+	//		bboxLoGLM.y = std::min(bboxLoGLM.y, bboxLo.y);
+	//		bboxLoGLM.z = std::min(bboxLoGLM.z, bboxLo.z);
+	//		bboxHiGLM.x = std::max(bboxHiGLM.x, bboxHi.x);
+	//		bboxHiGLM.y = std::max(bboxHiGLM.y, bboxHi.y);
+	//		bboxHiGLM.z = std::max(bboxHiGLM.z, bboxHi.z);
+	//	}
+	//
+	//
+	//	int axis = -1;
+	//	int prev = i;
+	//	int parent = h_leafParents[i]; // temporary change just to silence compiler -> probably nonsense and should be changed
+	//
+	//	while ( parent != -1 ) {
+	//		TreeInternalNode& currNode = h_BIH[parent];
+	//		axis = currNode.t_axis;
+	//
+	//		if ( currNode.children[0] == prev )
+	//			currNode.t_clipPlanes[0] = std::max( currNode.t_clipPlanes[0] , bboxHiGLM[axis]);
+	//		if ( currNode.children[1] == prev )
+	//			currNode.t_clipPlanes[1] = std::min( currNode.t_clipPlanes[1] , bboxLoGLM[axis]);
+	//
+	//		prev = parent;
+	//		parent = currNode.parent;
+	//	}
+	//}
+	//
+	//gpuArrayManager.GetBIHTree() = h_BIH;
+
+	
+	
+	
+	
+	
+	//DebugRender(gpuArrayManager,d_camera, m_cudaDestResource);
+	//thrust::host_vector<TreeInternalNode> h_BIH = gpuArrayManager.GetBIHTree();
 
 	/*-----PRINT BIH TREE -----*/
 	//for ( int i = 0; i < gpuArrayManager.GetBIHTreeSize(); i++ )
 	//{
 	//	auto currNode = h_BIH[i];
+	//	if ( !currNode.traversed ) {
+	//		std::cout << "Node ID: " << currNode.ID << std::endl;
+	//	}
+	//	
 	//	std::cout << "NODE " << i << std::endl;
 	//	std::cout << "parent: " << currNode.parent << std::endl;
-	//	std::cout << "leftChild: " << currNode.children[0] << std::endl;
-	//	std::cout << "isLeftLeaf: " << (currNode.isLeftLeaf ? "TRUE" : "FALSE") << std::endl;
+	//	std::cout << "leftChild:  " << currNode.children[0] << std::endl;
 	//	std::cout << "rightChild: " << currNode.children[1] << std::endl;
-	//	std::cout << "isRightLeaf: " << ( currNode.isRightLeaf ? "TRUE" : "FALSE" ) << std::endl;
+	//	std::cout << "axis: " << currNode.t_axis << std::endl;
+	//	std::cout << "isLeftLeaf: " << ( currNode.isLeaf[0] ? "TRUE" : "FALSE" ) << std::endl;
+	//	std::cout << "isRightLeaf: " << ( currNode.isLeaf[1] ? "TRUE" : "FALSE" ) << std::endl;
 	//	std::cout << "clipPlaneLEFT: " << currNode.t_clipPlanes[0] << std::endl;
 	//	std::cout << "clipPlaneRIGHT: " << currNode.t_clipPlanes[1] << std::endl;
-	//	std::cout << "axis: " << currNode.t_axis << std::endl;
 	//	std::cout << std::endl;
+	//	
 	//}
-
+	//std::cout << "===================" << std::endl;
 	Launch_cudaRender( m_cudaDestResource, gpuArrayManager );
 	checkCudaErrors( cudaGetLastError() );
 	checkCudaErrors( cudaDeviceSynchronize() );
+
+	//gpuArrayManager.ResetClipPlanes();
 	
 	cudaArray* texture_ptr;
 	checkCudaErrors( cudaGraphicsMapResources( 1, &m_cudaTexResultRes, 0 ) );
@@ -304,7 +667,7 @@ __host__ void Renderer::Render(GPUArrayManager& gpuArrayManager) {
 	glUseProgram( m_shaderProgram );
 	glBindVertexArray( m_quadVAO );
 	glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
-
+	checkCudaErrors(cudaDeviceSynchronize());
 	//cudaMemset(tree.d_hashTable, 0xff, sizeof(KeyValue) * kHashTableCapacity);
 }
 
@@ -401,7 +764,7 @@ __host__ void Renderer::CreateCUDABuffers() {
 	unsigned int num_texels = SCREEN_WIDTH * SCREEN_HEIGHT;
 	unsigned int num_values = num_texels * 4;
 	unsigned int size_tex_data = sizeof( GLubyte ) * num_values;
-	checkCudaErrors( cudaMalloc( (void**)&m_cudaDestResource, size_tex_data ) );
+	checkCudaErrors( cudaMallocManaged( (void**)&m_cudaDestResource, size_tex_data ) );
 }
 
 __host__ void Renderer::InitQuad() {
