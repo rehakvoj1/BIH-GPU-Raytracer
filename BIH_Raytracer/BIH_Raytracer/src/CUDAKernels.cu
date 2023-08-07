@@ -297,78 +297,72 @@ __device__ bool TraverseTree(const Ray& r,
         bool farIntersection = ( !tMinLessThanNear && !tMaxLessThanFar );
         bool bothIntersection = ( tMinLessThanNear && !tMaxLessThanFar );
 
-        if ( currNode->isLeaf[near] || currNode->isLeaf[far] ) {
-            if ( currNode->isLeaf[near] && !currNode->isLeaf[far] )
+        if ( noIntersection ) {
+            stackIdx--;
+            currNode = stack[stackIdx].t_node;
+            tMin = stack[stackIdx].t_tMin;
+            tMax = stack[stackIdx].t_tMax;
+        }
+        if ( nearIntersection ) {
+            if ( currNode->isLeaf[near] )
             {
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
-                if ( bothIntersection || farIntersection ) {
-                currNode = &( BIHTree[currNode->children[far]] );
-                tMin = t[far];
-
-                }
-                else {
-                    stackIdx--;
-                    currNode = stack[stackIdx].t_node;
-                    tMin = stack[stackIdx].t_tMin;
-                    tMax = stack[stackIdx].t_tMax;
-                }
-            }
-            else if( currNode->isLeaf[far] && !currNode->isLeaf[near] )
-            {
-                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
-                if ( bothIntersection || nearIntersection ) {
-                currNode = &( BIHTree[currNode->children[near]] );
-                tMax = t[near];
-
-                }
-                else {
-                    stackIdx--;
-                    currNode = stack[stackIdx].t_node;
-                    tMin = stack[stackIdx].t_tMin;
-                    tMax = stack[stackIdx].t_tMax;
-                }
+                stackIdx--;
+                currNode = stack[stackIdx].t_node;
+                tMin = stack[stackIdx].t_tMin;
+                tMax = stack[stackIdx].t_tMax;
             }
             else {
+                currNode = &( BIHTree[currNode->children[near]] );
+                tMax = t[near];
+            }
+        }
+        if ( farIntersection ) {
+            if ( currNode->isLeaf[far] )
+            {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+                stackIdx--;
+                currNode = stack[stackIdx].t_node;
+                tMin = stack[stackIdx].t_tMin;
+                tMax = stack[stackIdx].t_tMax;
+            }
+            else {
+                currNode = &( BIHTree[currNode->children[far]] );
+                tMin = t[far];
+            }
+        }
+        if ( bothIntersection ) {
+            if ( currNode->isLeaf[near] && currNode->isLeaf[far] )
+            {
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
                 stackIdx--;
                 currNode = stack[stackIdx].t_node;
                 tMin = stack[stackIdx].t_tMin;
                 tMax = stack[stackIdx].t_tMax;
-
             }
-        }
-        else 
-        {
-            
-
-            if ( noIntersection ) {
-                stackIdx--;
-                currNode = stack[stackIdx].t_node;
-                tMin = stack[stackIdx].t_tMin;
-                tMax = stack[stackIdx].t_tMax;
+            else if( !currNode->isLeaf[near] && currNode->isLeaf[far] )
+            {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+                currNode = &( BIHTree[currNode->children[near]] );
+                tMax = t[near];
+            }
+            else if ( currNode->isLeaf[near] && !currNode->isLeaf[far] )
+            {
+                FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+                currNode = &( BIHTree[currNode->children[far]] );
+                tMin = t[far];
             }
             else
             {
-                if ( bothIntersection ) {
-                    stack[stackIdx].t_node = &( BIHTree[currNode->children[far]] );
-                    stack[stackIdx].t_tMin = t[far];
-                    stack[stackIdx].t_tMax = tMax;
-                    stackIdx++;
-                    currNode = &(BIHTree[currNode->children[near]]);
-                    tMax = t[near];
-                }
-                else {
-                    currNode = nearIntersection ? &( BIHTree[currNode->children[near]] ) : &( BIHTree[currNode->children[far]] );
-                    tMin = nearIntersection ? tMin : t[far];
-                    tMax = nearIntersection ? t[near] : tMax;
-                }
+                stack[stackIdx].t_node = &( BIHTree[currNode->children[far]] );
+                stack[stackIdx].t_tMin = t[far];
+                stack[stackIdx].t_tMax = tMax;
+                stackIdx++;
+                currNode = &( BIHTree[currNode->children[near]] );
+                tMax = t[near];
             }
         }
-
-
-
-
     } 
     return ( outRecord.triangleIdx >= 0 );
 }
