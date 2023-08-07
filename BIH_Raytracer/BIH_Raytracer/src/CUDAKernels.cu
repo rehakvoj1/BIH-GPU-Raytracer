@@ -301,14 +301,32 @@ __device__ bool TraverseTree(const Ray& r,
             if ( currNode->isLeaf[near] && !currNode->isLeaf[far] )
             {
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
+                if ( bothIntersection || farIntersection ) {
                 currNode = &( BIHTree[currNode->children[far]] );
                 tMin = t[far];
+
+                }
+                else {
+                    stackIdx--;
+                    currNode = stack[stackIdx].t_node;
+                    tMin = stack[stackIdx].t_tMin;
+                    tMax = stack[stackIdx].t_tMax;
+                }
             }
             else if( currNode->isLeaf[far] && !currNode->isLeaf[near] )
             {
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[far], outRecord);
+                if ( bothIntersection || nearIntersection ) {
                 currNode = &( BIHTree[currNode->children[near]] );
                 tMax = t[near];
+
+                }
+                else {
+                    stackIdx--;
+                    currNode = stack[stackIdx].t_node;
+                    tMin = stack[stackIdx].t_tMin;
+                    tMax = stack[stackIdx].t_tMax;
+                }
             }
             else {
                 FindNearestTriangle(firstIdxs, duplicatesCnts, triangles, triangleIdxs, r, currNode->children[near], outRecord);
